@@ -1,0 +1,128 @@
+---all actively subscribed to autoship customers
+select count(distinct customer_id) customers  
+from cdm.subscriptions
+where status = 'Active'
+and CANCEL_DTTM IS NULL
+---results total=6,640,599 autoship customers as of Dec 15,2020
+
+----all active autoship customers who browsed in EITHER web or mobile app since June 1, 2020
+select count (distinct a.customer_id) from
+(select customer_id
+from mparticle.mparticle_sessions
+where session_date >'2020-05-31'
+and dataset <> 'web' 
+
+union
+
+select customer_id
+from ga.GA_SESSIONS 
+WHERE dataset = 'web'
+AND is_bot = false
+AND ga_sessions_date > '2020-05-31')a
+inner join
+(select customer_id  
+from cdm.subscriptions
+where status = 'Active') b
+on a.customer_id = b.customer_id
+---results total= 6,137,291 customers or 92% of all current autoship customers
+
+---active autoship customers who browsed in BOTH web and mobile app since June 1, 2020
+select count (distinct a.customer_id) from
+(select customer_id
+from mparticle.mparticle_sessions
+where session_date >'2020-05-31'
+and dataset <> 'web' 
+
+intersect
+
+select customer_id
+from ga.GA_SESSIONS 
+WHERE dataset = 'web'
+AND is_bot = false
+AND ga_sessions_date > '2020-05-31')a
+inner join
+(select customer_id  
+from cdm.subscriptions
+where status = 'Active') b
+on a.customer_id = b.customer_id
+---results total = 1,380,124 or 21% of all active autoship customers
+
+---active autoship customers who purchased in EITHER web and mobile app
+select count (distinct a.customer_id) from
+(select customer_id
+from mparticle.mparticle_sessions_events
+where session_date >'2020-05-31'
+and dataset <> 'web' 
+ and                  ((event_name = 'eCommerce - Purchase'
+                      AND DATASET = 'android'
+                      AND event_product_action : transaction_id :: string IS NOT NULL) or
+                        
+                     (tag_Status = 'old'
+                      AND DATASET = 'ios'
+                      AND event_product_action : product_action_list :: string = 'checkout-review-order'
+                      AND event_name = 'eCommerce - Purchase'
+                      AND event_product_action : transaction_id :: string IS NOT NULL) or
+ 
+                     (tag_Status = 'new'
+                      AND DATASET = 'ios'
+                      AND event_name = 'eCommerce - Purchase'
+                      AND event_product_action : transaction_id :: string IS NOT NULL))
+                        
+                               
+
+union
+
+select customer_id
+from ga.GA_SESSIONS_hits 
+WHERE dataset = 'web'
+    AND is_bot = false
+    AND EVENT_ACTION = 'purchase'
+    AND TRANSACTION_ID IS NOT NULL
+AND ga_sessions_date > '2020-05-31')a
+inner join
+(select customer_id  
+from cdm.subscriptions
+where status = 'Active') b
+on a.customer_id = b.customer_id
+----Results = 3,973,482 customers or 60% of active autoship customers
+
+
+
+---active autoship customers who purchased in BOTH web and mobile app
+select count (distinct a.customer_id) from
+(select customer_id
+from mparticle.mparticle_sessions_events
+where session_date >'2020-05-31'
+and dataset <> 'web' 
+ and                  ((event_name = 'eCommerce - Purchase'
+                      AND DATASET = 'android'
+                      AND event_product_action : transaction_id :: string IS NOT NULL) or
+                        
+                     (tag_Status = 'old'
+                      AND DATASET = 'ios'
+                      AND event_product_action : product_action_list :: string = 'checkout-review-order'
+                      AND event_name = 'eCommerce - Purchase'
+                      AND event_product_action : transaction_id :: string IS NOT NULL) or
+ 
+                     (tag_Status = 'new'
+                      AND DATASET = 'ios'
+                      AND event_name = 'eCommerce - Purchase'
+                      AND event_product_action : transaction_id :: string IS NOT NULL))
+                        
+                               
+
+intersect
+
+select customer_id
+from ga.GA_SESSIONS_hits 
+WHERE dataset = 'web'
+    AND is_bot = false
+    AND EVENT_ACTION = 'purchase'
+    AND TRANSACTION_ID IS NOT NULL
+AND ga_sessions_date > '2020-05-31')a
+inner join
+(select customer_id  
+from cdm.subscriptions
+where status = 'Active') b
+on a.customer_id = b.customer_id
+----results = 321,194 customers  or 5% out of all active autoship customers
